@@ -62,7 +62,6 @@ def generate_random_questions():
     lines = [line.strip() for line in text.split("\n") if line.strip()]
     return lines[:5]
   except Exception:
-    # 若 API 未設定或發生錯誤時的備用預設題目
     return [
         "題目1：需長時間重複站立包大福，你如何排解無聊？",
         "題目2：櫃檯同時湧入現場客與外送單，你如何排序處理？",
@@ -128,7 +127,22 @@ elif st.session_state.page == 2:
     st.subheader("第一階段：基本資料")
     name = st.text_input("姓名")
     gender = st.selectbox("性別", ["請選擇", "男", "女", "多元性別/不願透露"])
-    birth_date = st.date_input("出生日期")
+
+    # 修改後的出生日期（下拉選單，支援所有年份）
+    st.write("出生日期")
+    col_y, col_m, col_d = st.columns(3)
+    with col_y:
+      birth_year = st.selectbox(
+          "年份", options=[str(y) for y in range(2026, 1945, -1)], index=28
+      )
+    with col_m:
+      birth_month = st.selectbox(
+          "月份", options=[f"{m:02d}" for m in range(1, 13)]
+      )
+    with col_d:
+      birth_day = st.selectbox("日期", options=[f"{d:02d}" for d in range(1, 32)])
+    birth_date = f"{birth_year}/{birth_month}/{birth_day}"
+
     mbti = st.selectbox(
         "你的 MBTI",
         [
@@ -175,7 +189,9 @@ elif st.session_state.page == 2:
     st.markdown("---")
     st.subheader("第二階段：工作經歷與動機")
     q1 = st.selectbox(
-        "Q1. 上一份工作是否超過半年？",
+        "Q1. 上上一份工作是否超過半年？"
+        if "上一份工作" in "上一份工作"
+        else "Q1. 上一份工作是否超過半年？",
         [
             "無工作經驗",
             "少於半年",
@@ -270,10 +286,16 @@ elif st.session_state.page == 3:
 
   st.markdown("---")
   st.subheader("📋 店長專用：AI 分析與整理內容")
-  st.write("（點擊下方文字框右上角即可快速複製，貼給您的 AI 進行對話）")
+  st.write("（點擊下方文字框右上角即可快速複製，或使用下方按鈕）")
 
   summary_text = st.session_state.get("final_summary", "無資料")
   st.text_area("分析結果總覽", summary_text, height=400)
+
+  # 額外增加一個醒目的複製說明與提醒
+  st.markdown(
+      "👇 **請將本訊息複製貼到ＩＧ或ＦＢ對話中**",
+      unsafe_allow_html=True,
+  )
 
   col1, col2 = st.columns(2)
   with col1:
