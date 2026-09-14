@@ -6,7 +6,7 @@ import streamlit as st
 from openai import OpenAI
 
 # -------------------------------------------------------------------------
-# 頁面基本設定與自訂主題色彩 (#cd9e97 奶油色調)
+# 頁面基本設定與自訂主題色彩 (#e0c4bc 奶油色調)
 # -------------------------------------------------------------------------
 st.set_page_config(
     page_title="紅斗泥人才招募系統", page_icon="🍡", layout="centered"
@@ -59,7 +59,7 @@ if "final_summary" not in st.session_state:
 JOB_CONTEXT = """
 【店舖與工作情境背景】
 1. 核心產品：手工大福製作，內場需要極度細心、手巧、動作俐落。
-2. 內場特性：工作具高度重複性，長時間站立，同一崗位需長時間專注，不能怕無聊。
+2. 內場特性：工作具高度重複性，長時間站立（約8小時），同一崗位需長時間專注，不能怕無聊。
 3. 前台特性：若資質優秀需支援前台。前台為店內中樞神經，需具備極佳的抗干擾能力、多工切換速度、清晰邏輯與親切服務態度。
 4. 複雜作業環境：
    - 訂單來源多元：官網、Uber Eats、LINE 客服、現場購買。
@@ -98,16 +98,7 @@ def generate_random_questions():
 def analyze_candidate_data(data):
   """分析求職者回答並產出結構化報告"""
   prompt = f"""
-你是一位紅斗泥甜點業招募官與店長教練。請協助我分析以下求職者的面試問答內容，判斷其是否適合我們店舖的工作職位。【店舖與工作情境背景】請以符合我們店舖文化背景的標準評比（類網美店 6入大福售價約在320~360台幣 並注重質感與少女感的甜點店 ） 
-1. 核心產品：手工大福製作，內場需要極度細心、手巧、動作俐落。
-2. 內場特性：工作具高度重複性，長時間站立，同一崗位需長時間專注，不能怕無聊。
-3. 前台特性：若資質優秀需支援前台。前台為店內中樞神經，需具備極佳的抗干擾能力、多工切換速度、清晰邏輯與親切服務態度。
-4. 複雜作業環境：
-   - 訂單來源多元：官網、Uber Eats、LINE 客服、現場購買。
-   - 現場客群分流：取貨客（需快速核對拿取）與現場購買客。
-   - 前台必須即時將各平台訂單資訊交接給內場，並處理現場介紹、包裝、結帳。
-   - 金流與結帳：支援 LINE Pay、現金、信用卡三種方式，結帳與現金點收必須零失誤。
-   - 雜務協調：無客人時需處理客戶滿意度調查表與折紙盒等手工雜務。。
+你是一位資深的零售餐飲業招募顧問與店長教練。請協助我分析以下求職者的面試問答內容，判斷其是否適合我們店舖的工作職位。
 
 {JOB_CONTEXT}
 
@@ -116,13 +107,13 @@ def analyze_candidate_data(data):
 
 【分析任務與輸出格式】
 請根據求職者的填答內容，輸出以下結構化報告：
-1. 適性評分：給出整體綜合評分（0~100分），並詳述評分理由。
+1. 適性評分：給出整體綜合評分（SS / S / A / B / C），並簡述評分理由。
 2. 職位適配性判斷：
-   - 適合內場（手藝耐勞組）：評估其抗無聊、專注力與穩定度。
-   - 適合前台（多工應變組）：評估其抗壓性、多工處理與細心度（特別是金流與訂單交接）。
-3. 潛在優點：根據求職者的基本資料、作答風格與答案中找出可能發揮的淺在優點 
+   - 適合內場（手藝耐勞組）：評估其抗無聊、專注力與穩定度（含是否能配合久站）。
+   - 適合前台（多工應變組）：評估其抗壓性、多工處理與細心度。
+3. 配合度與出勤考量：評估加班、調店支援（鹽埕埔站）及最快到職時間的配合度。
 4. 潛在隱憂（Red Flags）：指出求職者回答中透露的可能風險。
-5. 錄用建議與複試追問：給出最終錄用建議，並提供 2-3 個若進入現場面試時需要特別抽問的追話題目。
+5. 錄用建議與複試追問：給出最終錄用建議，並提供 2-3 個複試追話題目。
 """
   response = client.chat.completions.create(
       model="gpt-4o",
@@ -133,11 +124,10 @@ def analyze_candidate_data(data):
 
 
 def send_emails_to_managers(candidate_name, content):
-  """自動發送 AI 分析報告，一次寄出三封信（可發給不同人或同一人三個備份）"""
+  """自動發送 AI 分析報告，一次寄出三封信"""
   sender_email = st.secrets.get("EMAIL_USER", "")
   sender_password = st.secrets.get("EMAIL_PASSWORD", "")
 
-  # 從 Secrets 讀取三個收件人信箱（支援 manager1, manager2, manager3）
   receivers = [
       st.secrets.get("MANAGER_EMAIL_1", sender_email),
       st.secrets.get("MANAGER_EMAIL_2", sender_email),
@@ -152,7 +142,6 @@ def send_emails_to_managers(candidate_name, content):
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
       server.login(sender_email, sender_password)
 
-      # 迴圈發送三封信
       for receiver in receivers:
         if not receiver:
           continue
@@ -241,6 +230,7 @@ elif st.session_state.page == 2:
     highest_edu = st.selectbox(
         "最高學歷", ["高中職", "專科", "大學", "碩士以上", "其他"]
     )
+    major = st.text_input("就讀科系")  # 新增：就讀科系
     is_student = st.radio("是否在學中", ["否", "是"], horizontal=True)
     marital_status = st.radio("婚姻狀況", ["未婚", "已婚"], horizontal=True)
     address = st.text_input("住址（鄉鎮市區即可）")
@@ -260,6 +250,25 @@ elif st.session_state.page == 2:
     phone = st.text_input("聯絡電話")
 
     st.markdown("---")
+    st.subheader("配合度與工作條件確認")
+    can_overtime = st.radio(
+        "是否可以配合加班？", ["是", "否", "視情況而定"], horizontal=True
+    )
+    can_support_store = st.radio(
+        "未來是否可以配合調店支援（鹽埕埔站）？",
+        ["是", "否", "視情況而定"],
+        horizontal=True,
+    )
+    can_stand_long = st.radio(
+        "是否能承受長時間站立（一天約需站8小時）？",
+        ["是", "否"],
+        horizontal=True,
+    )
+    start_work_time = st.text_input(
+        "最快到職時間（例如：隨時、兩週後、X月X日）"
+    )
+
+    st.markdown("---")
     st.subheader("第二階段：工作經歷與動機")
     q1 = st.selectbox(
         "Q1. 上一份工作是否超過半年？",
@@ -273,7 +282,7 @@ elif st.session_state.page == 2:
     )
     q2 = st.text_input("Q2. 上份工作為：職務＆公司？")
     q3 = st.text_area("Q3. 上份工作為什麼離職？")
-    q4 = st.text_area("Q4. 為什麼想來紅斗泥上班？")
+    q4 = st.text_area("Q4. 為什麼想來紅斗尼上班？")
     q5 = st.text_area(
         "Q5. 你平時休閒時喜歡做什麼呢？興趣、嗜好？（不限字數，請盡可能介紹自己）"
     )
@@ -281,7 +290,7 @@ elif st.session_state.page == 2:
     st.markdown("---")
     st.info(
         "💡 **【工作環境與狀況說明】**\n\n"
-        "我們是一間重視手藝與細節的手作大福品牌。內場工作具有高度重複性、需要長時間站立與高度專注；"
+        "我們是一間重視手藝與細節的手作大福品牌。內場工作具有高度重複性、需要長時間站立（約8小時）與高度專注；"
         "前台則是店內中樞神經，需面對多元訂單來源（官網、Uber Eats、LINE、現場）、處理現金與電子支付金流，"
         "並在空檔主動協助折紙盒與滿意度調查表。了解並認同這樣的工作節奏，是我們非常看重的特質！"
     )
@@ -311,13 +320,19 @@ elif st.session_state.page == 2:
 - 性別: {gender}
 - 出生日期: {birth_date}
 - MBTI: {mbti}
-- 最高學歷: {highest_edu}
+- 最高學歷: {highest_edu} ({major})
 - 是否在學中: {is_student}
 - 婚姻狀況: {marital_status}
 - 住址: {address}
 - 通勤時間: {commute_time}
 - 崗位優先順序: {role_priority}
 - 聯絡電話: {phone}
+
+【配合度與工作條件】
+- 是否可配合加班: {can_overtime}
+- 是否可配合調店支援(鹽埕埔站): {can_support_store}
+- 是否能承受長時間站立(約8小時): {can_stand_long}
+- 最快到職時間: {start_work_time}
 
 【經歷與動機】
 - Q1工作年資: {q1}
@@ -330,7 +345,7 @@ elif st.session_state.page == 2:
 {'\n\n'.join(q_answers)}
 """
         with st.spinner(
-            "記錄中，請稍候..."
+            "正在進行 AI 智慧分析並自動發送三封通知信，請稍候..."
         ):
           analysis_result = analyze_candidate_data(formatted_data)
 
@@ -340,7 +355,6 @@ elif st.session_state.page == 2:
 ====================
 {analysis_result}"""
 
-          # 自動發送三封信
           email_sent = send_emails_to_managers(name, final_report)
 
         if email_sent:
