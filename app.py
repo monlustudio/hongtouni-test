@@ -322,7 +322,7 @@ elif st.session_state.page == 3:
 
   col1, col2 = st.columns(2)
   with col1:
-    if st.button("🔄 重新填寫另一份", use_container_width=True):
+    if st.button("請複製上面內容 並傳送到IG或FB對話中（點擊後重新填寫一份）", use_container_width=True):
       st.session_state.page = 1
       st.session_state.final_summary = ""
       st.session_state.random_questions = []  # 清空題目
