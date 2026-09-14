@@ -273,7 +273,7 @@ elif st.session_state.page == 2:
     )
     q2 = st.text_input("Q2. 上份工作為：職務＆公司？")
     q3 = st.text_area("Q3. 上份工作為什麼離職？")
-    q4 = st.text_area("Q4. 為什麼想來紅斗尼上班？")
+    q4 = st.text_area("Q4. 為什麼想來紅斗泥上班？")
     q5 = st.text_area(
         "Q5. 你平時休閒時喜歡做什麼呢？興趣、嗜好？（不限字數，請盡可能介紹自己）"
     )
