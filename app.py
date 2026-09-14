@@ -128,7 +128,7 @@ elif st.session_state.page == 2:
     name = st.text_input("姓名")
     gender = st.selectbox("性別", ["請選擇", "男", "女", "多元性別/不願透露"])
 
-    # 修改後的出生日期（下拉選單，支援所有年份）
+    # 出生日期下拉選單
     st.write("出生日期")
     col_y, col_m, col_d = st.columns(3)
     with col_y:
@@ -189,9 +189,7 @@ elif st.session_state.page == 2:
     st.markdown("---")
     st.subheader("第二階段：工作經歷與動機")
     q1 = st.selectbox(
-        "Q1. 上上一份工作是否超過半年？"
-        if "上一份工作" in "上一份工作"
-        else "Q1. 上一份工作是否超過半年？",
+        "Q1. 上一份工作是否超過半年？",
         [
             "無工作經驗",
             "少於半年",
@@ -227,7 +225,7 @@ elif st.session_state.page == 2:
             "題目1：需長時間重複站立包大福，你如何排解無聊？",
             "題目2：櫃檯同時湧入現場客與外送單，你如何排序處理？",
             "題目3：收銀點帳時發現現金有短少，你通常會怎麼處理？",
-            "題目4：面對猶豫不決的客人後面又排長隊，你如何對應？",
+            "題目4：面對猶豫不決的客人後面又排長隊，你如何應對？",
             "題目5：店裡空檔需主動折紙盒與整理，你對此有何看法？",
         ]
     )
@@ -286,12 +284,12 @@ elif st.session_state.page == 3:
 
   st.markdown("---")
   st.subheader("📋 店長專用：AI 分析與整理內容")
-  st.write("（點擊下方文字框右上角即可快速複製，或使用下方按鈕）")
+  st.write("（點擊下方文字框右上角即可快速複製）")
 
   summary_text = st.session_state.get("final_summary", "無資料")
   st.text_area("分析結果總覽", summary_text, height=400)
 
-  # 額外增加一個醒目的複製說明與提醒
+  # 溫馨提醒
   st.markdown(
       "👇 **請將本訊息複製貼到ＩＧ或ＦＢ對話中**",
       unsafe_allow_html=True,
@@ -302,4 +300,5 @@ elif st.session_state.page == 3:
     if st.button("🔄 重新填寫另一份", use_container_width=True):
       st.session_state.page = 1
       st.session_state.final_summary = ""
+      st.session_state.random_questions = []  # 確保清空舊題目，下次重新抽題
       st.rerun()
