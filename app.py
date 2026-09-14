@@ -42,11 +42,12 @@ JOB_CONTEXT = """
 
 
 def generate_random_questions():
-  """呼叫 API 生成 5 個隨機情境題"""
+  """強制每次呼叫 API 生成 5 個隨機情境題（無寫死備用題）"""
   prompt = f"""
 {JOB_CONTEXT}
 
-請根據這些工作性質發送五個測試面試者的情境狀況題目給我。
+請根據這些工作性質隨機發送五個測試面試者的情境狀況題目給我。
+每次產生的題目角度與語境都必須盡量不同。
 題目不可太長，約 15~25 字。
 嚴格依照以下格式回傳，並且不得有多餘文字：
 題目1：...
@@ -55,27 +56,15 @@ def generate_random_questions():
 題目4：...
 題目5：...
 """
-  try:
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7,
-    )
-    text = response.choices[0].message.content.strip()
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
-    return lines[:5]
-  except Exception as e:
-    st.error(
-        f"⚠️ API 動態抽題失敗，原因：{e}（請檢查 Streamlit Secrets"
-        " 是否正確設定 OPENAI_API_KEY）"
-    )
-    return [
-        "題目1：需長時間重複站立包大福，你如何排解無聊？",
-        "題目2：櫃檯同時湧入現場客與外送單，你如何排序處理？",
-        "題目3：收銀點帳時發現現金有短少，你通常會怎麼處理？",
-        "題目4：面對猶豫不決的客人後面又排長隊，你如何應對？",
-        "題目5：店裡空檔需主動折紙盒與整理，你對此有何看法？",
-    ]
+  # 呼叫 API，並把 temperature 調高一點（例如 0.9）確保每次題目更多變
+  response = client.chat.completions.create(
+      model="gpt-4o",
+      messages=[{"role": "user", "content": prompt}],
+      temperature=0.9,
+  )
+  text = response.choices[0].message.content.strip()
+  lines = [line.strip() for line in text.split("\n") if line.strip()]
+  return lines[:5]
 
 
 def analyze_candidate_data(data):
@@ -97,28 +86,20 @@ def analyze_candidate_data(data):
 3. 潛在隱憂（Red Flags）：指出求職者回答中透露的可能風險。
 4. 錄用建議與複試追問：給出最終錄用建議，並提供 2-3 個若進入現場面試時需要特別抽問的追話題目。
 """
-  try:
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-    )
-    return response.choices[0].message.content.strip()
-  except Exception as e:
-    return (
-        "AI 分析發生錯誤（請確認是否已在 Streamlit Secrets"
-        f" 正確設定 OPENAI_API_KEY）：{str(e)}"
-    )
+  response = client.chat.completions.create(
+      model="gpt-4o",
+      messages=[{"role": "user", "content": prompt}],
+      temperature=0.3,
+  )
+  return response.choices[0].message.content.strip()
 
 
 def send_email_to_manager(candidate_name, content):
   """自動發送 AI 分析報告給店長信箱"""
-  # 從 Secrets 讀取信箱與 Gmail 應用程式密碼
   sender_email = st.secrets.get("EMAIL_USER", "")
   sender_password = st.secrets.get("EMAIL_PASSWORD", "")
   receiver_email = st.secrets.get("MANAGER_EMAIL", sender_email)
 
-  # 若未設定信箱密碼則略過寄信，避免 App 當機
   if not sender_email or not sender_password:
     return False
 
@@ -147,10 +128,17 @@ if st.session_state.page == 1:
   st.write("歡迎來到紅斗泥！請點擊下方按鈕開始填寫應徵問卷。")
 
   if st.button("點擊開始應徵", type="primary", use_container_width=True):
-    with st.spinner("正在為您透過 AI 準備專屬測驗題組..."):
-      st.session_state.random_questions = generate_random_questions()
-    st.session_state.page = 2
-    st.rerun()
+    with st.spinner("正在透過 AI 為您動態生成專屬測驗題組..."):
+      try:
+        # 強制每次點擊都重新抽題
+        st.session_state.random_questions = generate_random_questions()
+        st.session_state.page = 2
+        st.rerun()
+      except Exception as e:
+        st.error(
+            f"⚠️ API 動態抽題失敗！請檢查 Streamlit Secrets 的 OPENAI_API_KEY"
+            f" 是否正確。錯誤訊息：{e}"
+        )
 
 # -------------------------------------------------------------------------
 # 頁面二：填寫與測驗頁
@@ -163,7 +151,6 @@ elif st.session_state.page == 2:
     name = st.text_input("姓名")
     gender = st.selectbox("性別", ["請選擇", "男", "女", "多元性別/不願透露"])
 
-    # 出生日期下拉選單
     st.write("出生日期")
     col_y, col_m, col_d = st.columns(3)
     with col_y:
@@ -235,7 +222,7 @@ elif st.session_state.page == 2:
     )
     q2 = st.text_input("Q2. 上份工作為：職務＆公司？")
     q3 = st.text_area("Q3. 上份工作為什麼離職？")
-    q4 = st.text_area("Q4. 為什麼想來紅斗泥上班？")
+    q4 = st.text_area("Q4. 為什麼想來紅斗尼上班？")
     q5 = st.text_area(
         "Q5. 你平時休閒時喜歡做什麼呢？興趣、嗜好？（不限字數，請盡可能介紹自己）"
     )
@@ -250,22 +237,15 @@ elif st.session_state.page == 2:
 
     st.markdown("---")
     st.subheader("第三階段：情境題作答")
-    st.write("請根據以下 5 個情境回答您的想法與反應：")
+    st.write("請根據以下 5 個由 AI 動態生成的隨機情境回答您的想法：")
 
     q_answers = []
-    questions_to_show = (
-        st.session_state.random_questions
-        if st.session_state.random_questions
-        else [
-            "題目1：需長時間重複站立包大福，你如何排解無聊？",
-            "題目2：櫃檯同時湧入現場客與外送單，你如何排序處理？",
-            "題目3：收銀點帳時發現現金有短少，你通常會怎麼處理？",
-            "題目4：面對猶豫不決的客人後面又排長隊，你如何應對？",
-            "題目5：店裡空檔需主動折紙盒與整理，你對此有何看法？",
-        ]
-    )
+    # 直接使用剛剛抽到的題目，如果為空則代表未經首頁點擊，強制導回首頁
+    if not st.session_state.random_questions:
+      st.warning("請先從首頁點擊「點擊開始應徵」以產生題目！")
+      st.stop()
 
-    for idx, q in enumerate(questions_to_show):
+    for idx, q in enumerate(st.session_state.random_questions):
       ans = st.text_area(f"{q}", key=f"q_ans_{idx}")
       q_answers.append(f"{q}\n回答：{ans}")
 
@@ -302,7 +282,6 @@ elif st.session_state.page == 2:
         with st.spinner(
             "正在進行 AI 智慧分析並發送通知信給店長，請稍候..."
         ):
-          # 1. 執行 AI 分析
           analysis_result = analyze_candidate_data(formatted_data)
 
           final_report = f"""【求職者面試摘要報告】
@@ -311,16 +290,12 @@ elif st.session_state.page == 2:
 ====================
 {analysis_result}"""
 
-          # 2. 自動寄信給店長
           email_sent = send_email_to_manager(name, final_report)
 
-        # 提示寄信結果
         if email_sent:
           st.success("✅ AI 分析完成，已同步自動發送通知信給店長！")
         else:
-          st.info(
-              "ℹ️ AI 分析完成！(若未設定信箱密碼則僅顯示於畫面上供手動複製)"
-          )
+          st.info("ℹ️ AI 分析完成！")
 
         st.session_state.final_summary = final_report
         st.session_state.page = 3
@@ -350,5 +325,5 @@ elif st.session_state.page == 3:
     if st.button("🔄 重新填寫另一份", use_container_width=True):
       st.session_state.page = 1
       st.session_state.final_summary = ""
-      st.session_state.random_questions = []
+      st.session_state.random_questions = []  # 清空題目
       st.rerun()
