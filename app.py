@@ -1,4 +1,7 @@
 import os
+import smtplib
+from email.header import Header
+from email.mime.text import MIMEText
 import streamlit as st
 from openai import OpenAI
 
@@ -61,7 +64,11 @@ def generate_random_questions():
     text = response.choices[0].message.content.strip()
     lines = [line.strip() for line in text.split("\n") if line.strip()]
     return lines[:5]
-  except Exception:
+  except Exception as e:
+    st.error(
+        f"⚠️ API 動態抽題失敗，原因：{e}（請檢查 Streamlit Secrets"
+        " 是否正確設定 OPENAI_API_KEY）"
+    )
     return [
         "題目1：需長時間重複站立包大福，你如何排解無聊？",
         "題目2：櫃檯同時湧入現場客與外送單，你如何排序處理？",
@@ -104,6 +111,34 @@ def analyze_candidate_data(data):
     )
 
 
+def send_email_to_manager(candidate_name, content):
+  """自動發送 AI 分析報告給店長信箱"""
+  # 從 Secrets 讀取信箱與 Gmail 應用程式密碼
+  sender_email = st.secrets.get("EMAIL_USER", "")
+  sender_password = st.secrets.get("EMAIL_PASSWORD", "")
+  receiver_email = st.secrets.get("MANAGER_EMAIL", sender_email)
+
+  # 若未設定信箱密碼則略過寄信，避免 App 當機
+  if not sender_email or not sender_password:
+    return False
+
+  message = MIMEText(content, "plain", "utf-8")
+  message["From"] = Header(f"紅斗泥招募系統 <{sender_email}>", "utf-8")
+  message["To"] = Header(receiver_email, "utf-8")
+  message["Subject"] = Header(
+      f"【新應徵通知】{candidate_name} 的面試分析報告", "utf-8"
+  )
+
+  try:
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+      server.login(sender_email, sender_password)
+      server.sendmail(sender_email, [receiver_email], message.as_string())
+    return True
+  except Exception as e:
+    print(f"自動寄信失敗：{e}")
+    return False
+
+
 # -------------------------------------------------------------------------
 # 頁面一：首頁
 # -------------------------------------------------------------------------
@@ -112,7 +147,7 @@ if st.session_state.page == 1:
   st.write("歡迎來到紅斗泥！請點擊下方按鈕開始填寫應徵問卷。")
 
   if st.button("點擊開始應徵", type="primary", use_container_width=True):
-    with st.spinner("正在為您準備專屬測驗題組..."):
+    with st.spinner("正在為您透過 AI 準備專屬測驗題組..."):
       st.session_state.random_questions = generate_random_questions()
     st.session_state.page = 2
     st.rerun()
@@ -200,7 +235,7 @@ elif st.session_state.page == 2:
     )
     q2 = st.text_input("Q2. 上份工作為：職務＆公司？")
     q3 = st.text_area("Q3. 上份工作為什麼離職？")
-    q4 = st.text_area("Q4. 為什麼想來紅斗尼上班？")
+    q4 = st.text_area("Q4. 為什麼想來紅斗泥上班？")
     q5 = st.text_area(
         "Q5. 你平時休閒時喜歡做什麼呢？興趣、嗜好？（不限字數，請盡可能介紹自己）"
     )
@@ -264,14 +299,30 @@ elif st.session_state.page == 2:
 【情境題回答】
 {'\n\n'.join(q_answers)}
 """
-        with st.spinner("正在進行 AI 智慧分析，請稍候..."):
+        with st.spinner(
+            "正在進行 AI 智慧分析並發送通知信給店長，請稍候..."
+        ):
+          # 1. 執行 AI 分析
           analysis_result = analyze_candidate_data(formatted_data)
 
-        st.session_state.final_summary = f"""【求職者面試摘要報告】
+          final_report = f"""【求職者面試摘要報告】
 {formatted_data}
 
 ====================
 {analysis_result}"""
+
+          # 2. 自動寄信給店長
+          email_sent = send_email_to_manager(name, final_report)
+
+        # 提示寄信結果
+        if email_sent:
+          st.success("✅ AI 分析完成，已同步自動發送通知信給店長！")
+        else:
+          st.info(
+              "ℹ️ AI 分析完成！(若未設定信箱密碼則僅顯示於畫面上供手動複製)"
+          )
+
+        st.session_state.final_summary = final_report
         st.session_state.page = 3
         st.rerun()
 
@@ -289,7 +340,6 @@ elif st.session_state.page == 3:
   summary_text = st.session_state.get("final_summary", "無資料")
   st.text_area("分析結果總覽", summary_text, height=400)
 
-  # 溫馨提醒
   st.markdown(
       "👇 **請將本訊息複製貼到ＩＧ或ＦＢ對話中**",
       unsafe_allow_html=True,
@@ -300,5 +350,5 @@ elif st.session_state.page == 3:
     if st.button("🔄 重新填寫另一份", use_container_width=True):
       st.session_state.page = 1
       st.session_state.final_summary = ""
-      st.session_state.random_questions = []  # 確保清空舊題目，下次重新抽題
+      st.session_state.random_questions = []
       st.rerun()
