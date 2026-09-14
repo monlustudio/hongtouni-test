@@ -320,7 +320,7 @@ elif st.session_state.page == 2:
 {'\n\n'.join(q_answers)}
 """
         with st.spinner(
-            "正在進行 AI 智慧分析並自動發送三封通知信，請稍候..."
+            "記錄中，請稍候..."
         ):
           analysis_result = analyze_candidate_data(formatted_data)
 
