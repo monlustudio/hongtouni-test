@@ -349,13 +349,13 @@ elif st.session_state.page == 2:
           st.info("ℹ️ AI 分析完成！")
 
         st.session_state.final_summary = final_report
-        st.session_state.page = 3
+        st.session_state.page = 1
         st.rerun()
 
 # -------------------------------------------------------------------------
 # 頁面三：整理與複製頁
 # -------------------------------------------------------------------------
-elif st.session_state.page == 3:
+elif st.session_state.page == 1:
   st.title("🎉 問卷已成功送出！")
   st.write("感謝您的填答，我們已收到您的資訊。")
 
