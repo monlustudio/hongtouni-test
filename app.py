@@ -6,10 +6,39 @@ import streamlit as st
 from openai import OpenAI
 
 # -------------------------------------------------------------------------
-# 頁面基本設定與 API 連結 (API Key 從 Streamlit Secrets 讀取)
+# 頁面基本設定與自訂主題色彩 (#e0c4bc 奶油色調)
 # -------------------------------------------------------------------------
 st.set_page_config(
     page_title="紅斗泥人才招募系統", page_icon="🍡", layout="centered"
+)
+
+# 套用專屬色系與美化 CSS
+st.markdown(
+    """
+    <style>
+    /* 整體背景與主色調 */
+    .stApp {
+        background-color: #fcf9f8;
+    }
+    /* 按鈕樣式自訂 */
+    .stButton>button {
+        background-color: #e0c4bc;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #cda89e;
+        color: #ffffff;
+    }
+    /* 標題與文字微調 */
+    h1, h2, h3 {
+        color: #5c4033;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
 )
 
 # 優先從 Streamlit Secrets 讀取，若無則抓取環境變數
@@ -42,7 +71,7 @@ JOB_CONTEXT = """
 
 
 def generate_random_questions():
-  """強制每次呼叫 API 生成 5 個隨機情境題（無寫死備用題）"""
+  """強制每次呼叫 API 生成 5 個隨機情境題"""
   prompt = f"""
 {JOB_CONTEXT}
 
@@ -56,7 +85,6 @@ def generate_random_questions():
 題目4：...
 題目5：...
 """
-  # 呼叫 API，並把 temperature 調高一點（例如 0.9）確保每次題目更多變
   response = client.chat.completions.create(
       model="gpt-4o",
       messages=[{"role": "user", "content": prompt}],
@@ -94,27 +122,41 @@ def analyze_candidate_data(data):
   return response.choices[0].message.content.strip()
 
 
-def send_email_to_manager(candidate_name, content):
-  """自動發送 AI 分析報告給店長信箱"""
+def send_emails_to_managers(candidate_name, content):
+  """自動發送 AI 分析報告，一次寄出三封信（可發給不同人或同一人三個備份）"""
   sender_email = st.secrets.get("EMAIL_USER", "")
   sender_password = st.secrets.get("EMAIL_PASSWORD", "")
-  receiver_email = st.secrets.get("MANAGER_EMAIL", sender_email)
+
+  # 從 Secrets 讀取三個收件人信箱（支援 manager1, manager2, manager3）
+  receivers = [
+      st.secrets.get("MANAGER_EMAIL_1", sender_email),
+      st.secrets.get("MANAGER_EMAIL_2", sender_email),
+      st.secrets.get("MANAGER_EMAIL_3", sender_email),
+  ]
 
   if not sender_email or not sender_password:
     return False
 
-  message = MIMEText(content, "plain", "utf-8")
-  message["From"] = Header(f"紅斗泥招募系統 <{sender_email}>", "utf-8")
-  message["To"] = Header(receiver_email, "utf-8")
-  message["Subject"] = Header(
-      f"【新應徵通知】{candidate_name} 的面試分析報告", "utf-8"
-  )
-
+  success_count = 0
   try:
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
       server.login(sender_email, sender_password)
-      server.sendmail(sender_email, [receiver_email], message.as_string())
-    return True
+
+      # 迴圈發送三封信
+      for receiver in receivers:
+        if not receiver:
+          continue
+        message = MIMEText(content, "plain", "utf-8")
+        message["From"] = Header(f"紅斗泥招募系統 <{sender_email}>", "utf-8")
+        message["To"] = Header(receiver, "utf-8")
+        message["Subject"] = Header(
+            f"【新應徵通知】{candidate_name} 的面試分析報告", "utf-8"
+        )
+
+        server.sendmail(sender_email, [receiver], message.as_string())
+        success_count += 1
+
+    return success_count > 0
   except Exception as e:
     print(f"自動寄信失敗：{e}")
     return False
@@ -130,7 +172,6 @@ if st.session_state.page == 1:
   if st.button("點擊開始應徵", type="primary", use_container_width=True):
     with st.spinner("正在透過 AI 為您動態生成專屬測驗題組..."):
       try:
-        # 強制每次點擊都重新抽題
         st.session_state.random_questions = generate_random_questions()
         st.session_state.page = 2
         st.rerun()
@@ -239,12 +280,11 @@ elif st.session_state.page == 2:
     st.subheader("第三階段：情境題作答")
     st.write("請根據以下 5 個由 AI 動態生成的隨機情境回答您的想法：")
 
-    q_answers = []
-    # 直接使用剛剛抽到的題目，如果為空則代表未經首頁點擊，強制導回首頁
     if not st.session_state.random_questions:
       st.warning("請先從首頁點擊「點擊開始應徵」以產生題目！")
       st.stop()
 
+    q_answers = []
     for idx, q in enumerate(st.session_state.random_questions):
       ans = st.text_area(f"{q}", key=f"q_ans_{idx}")
       q_answers.append(f"{q}\n回答：{ans}")
@@ -280,7 +320,7 @@ elif st.session_state.page == 2:
 {'\n\n'.join(q_answers)}
 """
         with st.spinner(
-            "正在進行 AI 智慧分析並發送通知信給店長，請稍候..."
+            "正在進行 AI 智慧分析並自動發送三封通知信，請稍候..."
         ):
           analysis_result = analyze_candidate_data(formatted_data)
 
@@ -290,10 +330,11 @@ elif st.session_state.page == 2:
 ====================
 {analysis_result}"""
 
-          email_sent = send_email_to_manager(name, final_report)
+          # 自動發送三封信
+          email_sent = send_emails_to_managers(name, final_report)
 
         if email_sent:
-          st.success("✅ AI 分析完成，已同步自動發送通知信給店長！")
+          st.success("✅ AI 分析完成，已同步自動發送三封通知信給相關人員！")
         else:
           st.info("ℹ️ AI 分析完成！")
 
@@ -322,8 +363,8 @@ elif st.session_state.page == 3:
 
   col1, col2 = st.columns(2)
   with col1:
-    if st.button("請複製上面內容 並傳送到IG或FB對話中（點擊後重新填寫一份）", use_container_width=True):
+    if st.button("🔄 重新填寫另一份", use_container_width=True):
       st.session_state.page = 1
       st.session_state.final_summary = ""
-      st.session_state.random_questions = []  # 清空題目
+      st.session_state.random_questions = []
       st.rerun()
