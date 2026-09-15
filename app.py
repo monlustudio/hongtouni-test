@@ -67,6 +67,7 @@ JOB_CONTEXT = """
    - 前台必須即時將各平台訂單資訊交接給內場，並處理現場介紹、包裝、結帳。
    - 金流與結帳：支援 LINE Pay、現金、信用卡三種方式，結帳與現金點收必須零失誤。
    - 雜務協調：無客人時需處理客戶滿意度調查表與折紙盒等手工雜務。
+5. 內場工作：初期：包大福、環境清潔、清洗東西、認識口味裝盒進階：搓餡料、處理水果、打餡料
 """
 
 
@@ -98,19 +99,18 @@ def generate_random_questions():
 def analyze_candidate_data(data):
   """分析求職者回答並產出結構化報告"""
   prompt = f"""
-你是一位紅斗泥甜點業招募官與店長教練。請協助我分析以下求職者的面試問答內容，判斷其是否適合我們店舖的工作職位。【店舖與工作情境背景】請以符合我們店舖文化背景的標準評比（類網美店 6入大福售價約在320~360台幣 並注重質感與少女感的甜點店 ） 
+你是一位紅斗泥甜點業招募官與店長教練。請協助我分析以下求職者的面試問答內容，判斷其是否適合我們店舖的工作職位。【店舖與工作情境背景】請以符合我們店舖文化背景的標準評比（類網美店 6入大福售價約在320~360台幣 並注重質感與少女感的甜點店） 
 1. 核心產品：手工大福製作，內場需要極度細心、手巧、動作俐落。
 2. 內場特性：工作具高度重複性，長時間站立，同一崗位需長時間專注，不能怕無聊。
 3. 前台特性：若資質優秀需支援前台。前台為店內中樞神經，需具備極佳的抗干擾能力、多工切換速度、清晰邏輯與親切服務態度。
 4. 複雜作業環境：
-   - 訂單來源多元：官網、Uber Eats、LINE 客服、現場購買。
-   - 現場客群分流：取貨客（需快速核對拿取）與現場購買客。
-   - 前台必須即時將各平台訂單資訊交接給內場，並處理現場介紹、包裝、結帳。
-   - 金流與結帳：支援 LINE Pay、現金、信用卡三種方式，結帳與現金點收必須零失誤。
-   - 雜務協調：無客人時需處理客戶滿意度調查表與折紙盒等手工雜務。。
+   - 訂單來源多元：官網、Uber Eats、LINE 客服、現場購買。
+   - 現場客群分流：取貨客（需快速核對拿取）與現場購買客。
+   - 前台必須即時將各平台訂單資訊交接給內場，並處理現場介紹、包裝、結帳。
+   - 金流與結帳：支援 LINE Pay、現金、信用卡三種方式，結帳與現金點收必須零失誤。
+   - 雜務協調：無客人時需處理客戶滿意度調查表與折紙盒等手工雜務。
 5. 內場工作：初期：包大福、環境清潔、清洗東西、認識口味裝盒進階：搓餡料、處理水果、打餡料
    
-
 {JOB_CONTEXT}
 
 【求職者填答資料】
@@ -241,7 +241,7 @@ elif st.session_state.page == 2:
     highest_edu = st.selectbox(
         "最高學歷", ["高中職", "專科", "大學", "碩士以上", "其他"]
     )
-    major = st.text_input("就讀科系")  # 新增：就讀科系
+    major = st.text_input("就讀科系")
     is_student = st.radio("是否在學中", ["否", "是"], horizontal=True)
     marital_status = st.radio("婚姻狀況", ["未婚", "已婚"], horizontal=True)
     address = st.text_input("住址（鄉鎮市區即可）")
@@ -293,7 +293,7 @@ elif st.session_state.page == 2:
     )
     q2 = st.text_input("Q2. 上份工作為：職務＆公司？")
     q3 = st.text_area("Q3. 上份工作為什麼離職？")
-    q4 = st.text_area("Q4. 為什麼想來紅斗泥上班？")
+    q4 = st.text_area("Q4. 為什麼想來紅斗尼上班？")
     q5 = st.text_area(
         "Q5. 你平時休閒時喜歡做什麼呢？興趣、嗜好？（不限字數，請盡可能介紹自己）"
     )
@@ -355,9 +355,7 @@ elif st.session_state.page == 2:
 【情境題回答】
 {'\n\n'.join(q_answers)}
 """
-        with st.spinner(
-            "資料記錄中！"
-        ):
+        with st.spinner("資料提交中，請稍候..."):
           analysis_result = analyze_candidate_data(formatted_data)
 
           final_report = f"""【求職者面試摘要報告】
@@ -366,40 +364,27 @@ elif st.session_state.page == 2:
 ====================
 {analysis_result}"""
 
-          email_sent = send_emails_to_managers(name, final_report)
-
-        if email_sent:
-          st.success("✅ 資料記錄中！")
-        else:
-          st.info("ℹ️ AI 分析完成！")
+          # 幕後自動發送信件給店長群組
+          send_emails_to_managers(name, final_report)
 
         st.session_state.final_summary = final_report
         st.session_state.page = 3
         st.rerun()
 
 # -------------------------------------------------------------------------
-# 頁面三：整理與複製頁
+# 頁面三：受試者送出後的感謝頁面（不顯示評估結果）
 # -------------------------------------------------------------------------
 elif st.session_state.page == 3:
   st.title("🎉 問卷已成功送出！")
-  st.write("感謝您的填答，我們已收到您的資訊。")
-
   st.markdown("---")
-  st.subheader("📋 店長專用：AI 分析與整理內容")
-  st.write("（點擊下方文字框右上角即可快速複製）")
-
-  summary_text = st.session_state.get("final_summary", "無資料")
-  st.text_area("分析結果總覽", summary_text, height=400)
-
-  st.markdown(
-      "👇 **請將本訊息複製貼到ＩＧ或ＦＢ對話中**",
-      unsafe_allow_html=True,
+  st.success("感謝您的耐心填答與分享！我們已收到您的應徵資料。")
+  st.write(
+      "團隊將會仔細審閱您的回答，若與目前的職缺需求相符，將會主動透過電話或社群私訊與您聯繫安排面試。祝您順心！"
   )
 
-  col1, col2 = st.columns(2)
-  with col1:
-    if st.button("🔄 重新填寫另一份", use_container_width=True):
-      st.session_state.page = 1
-      st.session_state.final_summary = ""
-      st.session_state.random_questions = []
-      st.rerun()
+  st.markdown("---")
+  if st.button("🔄 填寫下一份問卷", use_container_width=True):
+    st.session_state.page = 1
+    st.session_state.final_summary = ""
+    st.session_state.random_questions = []
+    st.rerun()
