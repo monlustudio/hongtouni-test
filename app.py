@@ -118,7 +118,7 @@ def analyze_candidate_data(data):
 
 【分析任務與輸出格式】
 請根據求職者的填答內容，輸出以下結構化報告：
-1. 適性評分：給出整體綜合評分（SS / S / A / B / C），並簡述評分理由。
+1. 適性評分：給出整體綜合評分（0~100），並簡述評分理由。
 2. 職位適配性判斷：
    - 適合內場（手藝耐勞組）：評估其抗無聊、專注力與穩定度（含是否能配合久站）。
    - 適合前台（多工應變組）：評估其抗壓性、多工處理與細心度。
@@ -356,7 +356,7 @@ elif st.session_state.page == 2:
 {'\n\n'.join(q_answers)}
 """
         with st.spinner(
-            "正在進行 AI 智慧分析並自動發送三封通知信，請稍候..."
+            "資料記錄中！"
         ):
           analysis_result = analyze_candidate_data(formatted_data)
 
